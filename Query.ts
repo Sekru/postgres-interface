@@ -12,7 +12,7 @@ export default class Query {
 
     insert(obj: object) {
         this.query = [];
-        this.query.push(`INSERT INTO ${this.tableName} VALUES(${Object.keys(obj).map((e, i) => `$${i+1}`).join(',')})`);
+        this.query.push(`INSERT INTO ${this.tableName}(${Object.keys(obj).join(',')}) VALUES(${Object.keys(obj).map((e, i) => `$${i+1}`).join(',')})`);
         this.params.push(...Object.values(obj));
         return this;
     }

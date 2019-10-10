@@ -30,7 +30,7 @@ describe('Query builder tests', () => {
       const r = new Query({});
       r.table('test').insert({'id': 1});
 
-      expect(r.query.join(' ')).equal('INSERT INTO test VALUES($1)');
+      expect(r.query.join(' ')).equal('INSERT INTO test(id) VALUES($1)');
       expect(r.params[0]).equal(1);
     });
 });
