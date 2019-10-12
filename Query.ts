@@ -42,10 +42,36 @@ export default class Query {
         return this;
     }
 
-    filter(conditions: object) {
-        this.query.push(`WHERE ${Object.keys(conditions).map((e, i) => `${e} = $${i+1}`).join(',')}`);
-        this.params.push(...Object.values(conditions));
+    row(field: string) {
+        return {
+            gt(value: number) {
+                return `${field} > ${value}`
+            },
+            lt(value: number) {
+                return `${field} < ${value}`
+            }
+        }
+    }
+
+    between(x: any, y: any, field: string) {
+        this.query.push(`WHERE ${field} BETWEEN ${x} AND ${y}`);
+    }
+
+    filter(conditions: object | Function | string) {
+        if (typeof conditions === 'function') {
+
+        } else if (typeof conditions === 'string') {
+            this.query.push(`WHERE ${conditions}`);
+        }
+        else {
+            this.query.push(`WHERE ${Object.keys(conditions).map((e, i) => `${e} = $${i+1}`).join(',')}`);
+            this.params.push(...Object.values(conditions));
+        }
         return this;
+    }
+
+    custom(query: string) {
+        this.query.push(query);
     }
 
     async run() {
