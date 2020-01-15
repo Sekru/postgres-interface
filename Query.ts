@@ -11,15 +11,33 @@ export default class Query {
     }
 
     insert(obj: object) {
-        this.query = [];
-        this.query.push(`INSERT INTO ${this.tableName}(${Object.keys(obj).join(',')}) VALUES(${Object.keys(obj).map((e, i) => `$${i+1}`).join(',')})`);
+        if (this.query[0].startsWith('SELECT')) {
+            this.query.shift();
+        }
+        this.query.unshift(`INSERT INTO ${this.tableName}(${Object.keys(obj).join(',')}) VALUES(${Object.keys(obj).map((e, i) => `$${i+1}`).join(',')})`);
         this.params.push(...Object.values(obj));
+        return this;
+    }
+
+    update(obj: object) {
+        if (this.query[0].startsWith('SELECT')) {
+            this.query.shift();
+        }
+        this.query.unshift(`UPDATE ${this.tableName} SET ${Object.entries(obj).map(e  => `${e[0]} = ${e[1]}`).join(', ')}`);
+        return this;
+    }
+
+    delete() {
+        if (this.query[0].startsWith('SELECT')) {
+            this.query.shift();
+        }
+        this.query.unshift(`DELETE FROM ${this.tableName}`);
         return this;
     }
 
     table(name: string) {
         this.tableName = name;
-        this.query.push(`SELECT ${this.columns.length ? this.columns.join(',') : '*'} FROM ${this.tableName}`);
+        this.query.unshift(`SELECT ${this.columns.length ? this.columns.join(',') : '*'} FROM ${this.tableName}`);
         return this;
     }
 
@@ -70,8 +88,13 @@ export default class Query {
         return this;
     }
 
+    get(id: any) {
+        this.query.push(`WHERE id = ${id}`);
+    }
+
     custom(query: string) {
         this.query.push(query);
+        return this;
     }
 
     async run() {
