@@ -54,4 +54,27 @@ describe('Query builder tests', () => {
       expect(r.query.join(' ')).equal('INSERT INTO test(id) VALUES($1)');
       expect(r.params[0]).equal(1);
     });
+
+    it('should build update', () => {
+      const r = new Query({});
+      r.table('test').update({'id': 1, 'name': 'test'});
+
+      expect(r.query.join(' ')).equal('UPDATE test SET id = 1, name = test');
+    });
+
+    it('should build filter and update', () => {
+      const r = new Query({});
+      r.table('test').filter({'name': 'test'}).update({'name': 'test2', 'foo': 'bar'});
+
+      expect(r.query.join(' ')).equal('UPDATE test SET name = test2, foo = bar WHERE name = $1');
+      expect(r.params[0]).equal('test');
+    });
+
+    it('should build filter and delete', () => {
+      const r = new Query({});
+      r.table('test').filter({'name': 'test'}).delete();
+
+      expect(r.query.join(' ')).equal('DELETE FROM test WHERE name = $1');
+      expect(r.params[0]).equal('test');
+    });
 });
