@@ -77,4 +77,11 @@ describe('Query builder tests', () => {
       expect(r.query.join(' ')).equal('DELETE FROM test WHERE name = $1');
       expect(r.params[0]).equal('test');
     });
+
+    it('should build hasFields', () => {
+      const r = new Query({});
+      r.table('test').hasFields('foo', 'bar');
+
+      expect(r.query.join(' ')).equal('SELECT * FROM test WHERE foo IS NOT NULL AND bar IS NOT NULL');
+    });
 });
