@@ -1,8 +1,19 @@
 import { Pool } from 'pg';
 export default class Query {
-    public query: Array<any> = [];
+    public query: any = {
+        insert: '',
+        update: '',
+        delete: '',
+        select: '',
+        where: [],
+        and: [],
+        or: [],
+        order: '',
+        offset: '',
+        limit: ''
+
+    };
     private pool: Pool;
-    public params: Array<any> = [];
     private columns: Array<any> = [];
     private defaultValue = {};
     private tableName = '';
@@ -11,33 +22,23 @@ export default class Query {
     }
 
     insert(obj: object) {
-        if (this.query[0].startsWith('SELECT')) {
-            this.query.shift();
-        }
-        this.query.unshift(`INSERT INTO ${this.tableName}(${Object.keys(obj).join(',')}) VALUES(${Object.keys(obj).map((e, i) => `$${i+1}`).join(',')})`);
-        this.params.push(...Object.values(obj));
+        this.query.insert = `INSERT INTO ${this.tableName}(${Object.keys(obj).join(',')}) VALUES(${Object.values(obj).join(',')})`;
         return this;
     }
 
     update(obj: object) {
-        if (this.query[0].startsWith('SELECT')) {
-            this.query.shift();
-        }
-        this.query.unshift(`UPDATE ${this.tableName} SET ${Object.entries(obj).map(e  => `${e[0]} = ${e[1]}`).join(', ')}`);
+        this.query.update = `UPDATE ${this.tableName} SET ${Object.entries(obj).map(e  => `${e[0]} = ${e[1]}`).join(', ')}`;
         return this;
     }
 
     delete() {
-        if (this.query[0].startsWith('SELECT')) {
-            this.query.shift();
-        }
-        this.query.unshift(`DELETE FROM ${this.tableName}`);
+        this.query.delete = `DELETE FROM ${this.tableName}`;
         return this;
     }
 
     table(name: string) {
         this.tableName = name;
-        this.query.unshift(`SELECT ${this.columns.length ? this.columns.join(',') : '*'} FROM ${this.tableName}`);
+        this.query.select = `SELECT ${this.columns.length ? this.columns.join(',') : '*'} FROM ${this.tableName}`;
         return this;
     }
 
@@ -46,22 +47,22 @@ export default class Query {
     }
 
     orderBy(order: string) {
-        this.query.push(`ORDER BY ${order}`);
+        this.query.order = `ORDER BY ${order}`;
         return this;
     }
 
     skip(n: number) {
-        this.query.push(`OFFSET ${n}`);
+        this.query.offset = `OFFSET ${n}`;
         return this;
     }
 
     nth(n: number) {
-        this.query.push(`LIMIT 1 OFFSET ${n}`);
+        this.query.limit = `LIMIT 1 OFFSET ${n}`;
         return this;
     }
 
     limit(n: number) {
-        this.query.push(`LIMIT ${n}`);
+        this.query.limit = `LIMIT ${n}`;
         return this;
     }
 
@@ -71,50 +72,92 @@ export default class Query {
     }
 
     row(field: string) {
+        const where: any = [];
+        const or: any = [];
+        const _this = this;
         return {
             gt(value: number) {
-                return `${field} > ${value}`
+                where.push(`${field} > ${value}`);
+                return this;
             },
             lt(value: number) {
-                return `${field} < ${value}`
+                where.push(`${field} < ${value}`);
+                return this;
+            },
+
+            during(x: any, y: any, obj: any) {
+                if (typeof x === 'number') {
+                    if (obj.rightBound === 'closed') {
+                        where.push(`${field} <= ${x} AND ${field} >= ${y}`);
+                    } else {
+                        where.push(`${field} <= ${x} AND ${field} > ${y}`);
+                    }
+                } else {
+                    where.push(`${field} BETWEEN ${x} AND ${y}`);
+                }
+                return this;
+            },
+
+            eq(value: any) {
+                where.push(`${field} = ${value}`);
+                return this;
+            },
+
+            or(str: any) {
+                or.push(`(${str})`);
+                return this;
+            },
+
+            and(str: any) {
+                where.push(`(${str})`);
+                return this;
+            },
+
+            toString() {
+                return `${where.join(' AND ')} ${or.length ? 'AND ' + or.join(' OR '): ''}`;
+            },
+
+            run() {
+                _this.query.where.push(...where);
             }
         }
     }
 
     between(x: any, y: any, field: string) {
-        this.query.push(`WHERE ${field} BETWEEN ${x} AND ${y}`);
+        this.query.where.push(`${field} BETWEEN ${x} AND ${y}`);
     }
 
-    filter(conditions: object | Function | string) {
+    filter(conditions: any) {
         if (typeof conditions === 'function') {
-
+            this.query.where.push(conditions(this.row));
         } else if (typeof conditions === 'string') {
-            this.query.push(`WHERE ${conditions}`);
+            this.query.where.push(`${conditions}`);
         }
         else {
-            this.query.push(`WHERE ${Object.keys(conditions).map((e, i) => `${e} = $${i+1}`).join(',')}`);
-            this.params.push(...Object.values(conditions));
+            conditions ? this.query.where.push(`${Object.keys(conditions).map((e, i) => `${e} = ${conditions[e]}`).join(',')}`) : null;
         }
         return this;
     }
 
     get(id: any) {
-        this.query.push(`WHERE id = ${id}`);
+        this.query.where.push(`id = ${id}`);
         return this;
     }
 
     hasFields(...args: any[]) {
-        this.query.push(`WHERE ${args.map(e => `${e} IS NOT NULL`).join(' AND ')}`);
+        this.query.where.push(`${args.map(e => `${e} IS NOT NULL`).join(' AND ')}`);
         return this;
     }
 
-    custom(query: string) {
-        this.query.push(query);
-        return this;
+    toString() {
+        return `${this.query.insert.length ? this.query.insert : 
+            `${this.query.delete || 
+            this.query.update || 
+            this.query.select} ${this.query.where.length ? 'WHERE' : ''} ${this.query.where.join(' AND ')}`} ${this.query.order} ${this.query.offset} ${this.query.limit}`.trim()
     }
 
     async run() {
-        const response = await this.pool.query(this.query.join(' '), this.params);
+        const response = await this.pool.query(this.toString());
 
         if (response.rows && response.rows.length) {
             return response.rows;
