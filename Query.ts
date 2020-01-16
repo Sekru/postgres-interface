@@ -50,6 +50,16 @@ export default class Query {
         return this;
     }
 
+    skip(n: number) {
+        this.query.push(`OFFSET ${n}`);
+        return this;
+    }
+
+    nth(n: number) {
+        this.query.push(`LIMIT 1 OFFSET ${n}`);
+        return this;
+    }
+
     limit(n: number) {
         this.query.push(`LIMIT ${n}`);
         return this;
@@ -90,6 +100,12 @@ export default class Query {
 
     get(id: any) {
         this.query.push(`WHERE id = ${id}`);
+        return this;
+    }
+
+    hasFields(...args: any[]) {
+        this.query.push(`WHERE ${args.map(e => `${e} IS NOT NULL`).join(' AND ')}`);
+        return this;
     }
 
     custom(query: string) {
