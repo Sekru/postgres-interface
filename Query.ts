@@ -1,18 +1,7 @@
 import { Pool } from 'pg';
 
 export default class Query {
-    public query: any = {
-        insert: '',
-        update: '',
-        delete: '',
-        select: '',
-        where: [],
-        and: [],
-        or: [],
-        order: '',
-        offset: '',
-        limit: ''
-    };
+    public query: any;
     private pool: Pool;
     private columns: Array<any> = [];
     private defaultValue = {};
@@ -20,7 +9,28 @@ export default class Query {
     private customQuery : string = '';
     private tableOperatiosQuery : string = '';
 
+    private resetQuery() {
+        this.columns = [];
+        this.defaultValue = {};
+        this.tableName = '';
+        this.customQuery = '';
+        this.tableOperatiosQuery = '';
+        this.query = {
+            insert: '',
+            update: '',
+            delete: '',
+            select: '',
+            where: [],
+            and: [],
+            or: [],
+            order: '',
+            offset: '',
+            limit: ''
+        };
+    }
+
     constructor(pool: any) {
+        this.resetQuery()
         this.pool = pool;
     }
 
@@ -42,6 +52,21 @@ export default class Query {
     table(name: string) {
         this.tableName = name;
         this.query.select = `SELECT ${this.columns.length ? this.columns.join(',') : '*'} FROM ${this.tableName}`;
+        return this;
+    }
+
+    sum(column: string) {
+        this.query.select = `SELECT SUM(${column}) AS ${column}Sum FROM ${this.tableName}`;
+        return this;
+    }
+
+    count(column: any) {
+        this.query.select = `SELECT COUNT(${column ? column : '*'}) AS ${column}Count FROM ${this.tableName}`;
+        return this;
+    }
+
+    avg(column: string) {
+        this.query.select = `SELECT AVG(${column}) AS ${column}Avg FROM ${this.tableName}`;
         return this;
     }
 
@@ -171,17 +196,24 @@ export default class Query {
 
     toString() {
         if (this.customQuery.length) {
-            return this.customQuery;
+            const q = this.customQuery;
+            this.resetQuery();
+            return q;
         }
 
         if (this.tableOperatiosQuery.length) {
-            return this.tableOperatiosQuery;
+            const q = this.tableOperatiosQuery;
+            this.resetQuery();
+            return q;
         }
 
-        return `${this.query.insert.length ? this.query.insert : 
-            `${this.query.delete || 
-            this.query.update || 
-            this.query.select} ${this.query.where.length ? 'WHERE' : ''} ${this.query.where.join(' AND ')}`} ${this.query.order} ${this.query.offset} ${this.query.limit}`.trim()
+        const q = `${this.query.insert.length ? this.query.insert :
+            `${this.query.delete ||
+            this.query.update ||
+            this.query.select} ${this.query.where.length ? 'WHERE' : ''} ${this.query.where.join(' AND ')}`} ${this.query.order} ${this.query.offset} ${this.query.limit}`.trim();
+
+        this.resetQuery();
+        return q;
     }
 
     async run() {
