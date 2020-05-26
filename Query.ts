@@ -1,4 +1,5 @@
 import { Pool } from 'pg';
+
 export default class Query {
     public query: any = {
         insert: '',
@@ -11,12 +12,14 @@ export default class Query {
         order: '',
         offset: '',
         limit: ''
-
     };
     private pool: Pool;
     private columns: Array<any> = [];
     private defaultValue = {};
     private tableName = '';
+    private customQuery : string = '';
+    private tableOperatiosQuery : string = '';
+
     constructor(pool: any) {
         this.pool = pool;
     }
@@ -114,7 +117,7 @@ export default class Query {
             },
 
             toString() {
-                return `${where.join(' AND ')} ${or.length ? 'AND ' + or.join(' OR '): ''}`;
+                return `${where.join(' AND ')} ${or.length ? 'OR ' + or.join(' OR '): ''}`;
             },
 
             run() {
@@ -149,7 +152,32 @@ export default class Query {
         return this;
     }
 
+    custom(str : string) {
+        this.customQuery = str;
+        return this;
+    }
+
+    tableCreate(tableName: string, schema: {} = {}) {
+        this.tableOperatiosQuery = `CREATE TABLE ${tableName} (${Object.keys(schema)
+            // @ts-ignore
+            .map(k => `${k} ${schema[k]}`).join(',')})`
+        return this;
+    }
+
+    indexCreate(indexName: string, tableName: string, columns: string[]) {
+        this.tableOperatiosQuery = `CREATE INDEX ${indexName} ON ${tableName} (${columns.join(',')})`
+        return this;
+    }
+
     toString() {
+        if (this.customQuery.length) {
+            return this.customQuery;
+        }
+
+        if (this.tableOperatiosQuery.length) {
+            return this.tableOperatiosQuery;
+        }
+
         return `${this.query.insert.length ? this.query.insert : 
             `${this.query.delete || 
             this.query.update || 
