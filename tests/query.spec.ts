@@ -73,6 +73,13 @@ describe('Query builder tests', () => {
       expect(r.toString()).equal('SELECT * FROM test WHERE foo IS NOT NULL AND bar IS NOT NULL');
     });
 
+    it('should build custom query', () => {
+      const r = new Query({});
+      r.table('test').custom('SELECT 1');
+
+      expect(r.toString()).equal('SELECT 1');
+    });
+
     it('should build extreme query', () => {
       const r = new Query({});
         r.table('test')
@@ -81,10 +88,24 @@ describe('Query builder tests', () => {
           .filter((row: any) => {
               return row('valueStart')
                   .during(10, 20, { rightBound: 'closed' })
-                  .or(row('valueEnd').during(10, 20, { rightBound: 'closed' }).toString())
-                  .or(row('valueStart').lt(10).and(row('valueEnd').gt(20).toString()).toString()).toString();
+                  .or(row('valueEnd').during(10, 20, { rightBound: 'closed' }))
+                  .or(row('valueStart').lt(10).and(row('valueEnd').gt(20)));
           });
 
-        expect(r.toString()).equal(`SELECT * FROM test WHERE id IS NOT NULL AND foo = bar AND valueStart <= 10 AND valueStart >= 20 AND (valueEnd <= 10 AND valueEnd >= 20 ) OR (valueStart < 10 AND (valueEnd > 20 ) )`);
+        expect(r.toString()).equal(`SELECT * FROM test WHERE id IS NOT NULL AND foo = bar AND valueStart <= 10 AND valueStart >= 20 OR (valueEnd <= 10 AND valueEnd >= 20 ) OR (valueStart < 10 AND (valueEnd > 20 ) )`);
+    });
+
+    it('should create table', () => {
+      const r = new Query({});
+      r.tableCreate('test', {desc: 'TEXT', id: 'INTEGER'});
+
+      expect(r.toString()).equal('CREATE TABLE test (desc TEXT,id INTEGER)');
+    });
+
+    it('should create index', () => {
+      const r = new Query({});
+      r.indexCreate('test', 'test', ['id', 'desc']);
+
+      expect(r.toString()).equal('CREATE INDEX test ON test (id,desc)');
     });
 });
